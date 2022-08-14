@@ -18,6 +18,10 @@ data class Company(
     val address: String,
     @ColumnInfo(name = "city")
     val city: String,
+    @ColumnInfo(name = "latitude")
+    val latitude: Double,
+    @ColumnInfo(name = "longitude")
+    val longitude: Double,
     @ColumnInfo(name = "zipCode")
     val zipCode: String
 ):Parcelable {

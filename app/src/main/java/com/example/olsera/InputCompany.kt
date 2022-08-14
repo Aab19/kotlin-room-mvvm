@@ -1,30 +1,52 @@
 package com.example.olsera
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.Address
+import android.location.Location
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.text.TextUtils
+import android.util.Log
 import android.view.View
 import android.widget.RadioButton
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModelProvider
-import com.adevinta.leku.LocationPickerActivity
-import com.adevinta.leku.locale.SearchZoneRect
+import com.adevinta.leku.*
 import com.example.olsera.databinding.ActivityInputCompanyBinding
 import com.example.olsera.utils.showCustomToast
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.Marker
 
-class InputCompany : AppCompatActivity() {
+class InputCompany : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
 
     private lateinit var binding: ActivityInputCompanyBinding
     private var selectedRadioButton: String? = ""
     private lateinit var viewModel: CompanyViewModel
     private var data: Company? = null
     private var companyID = -1
+    private var editType = false
     private var listener: ((Boolean) -> Unit?)? = null
+
+    private lateinit var mapView: GoogleMap
+    private lateinit var lastLocation: Location
+    private lateinit var fusedLocationProviderClient: FusedLocationProviderClient
+    private var latitude = -7.779219
+    private var longitude = 110.378007
+
+    companion object {
+        const val MAPS_API_KEY = "AIzaSyCuEkBxn6JCa0_M56a31MoXoq2UJ6jkvBI"
+    }
+
 
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,6 +60,7 @@ class InputCompany : AppCompatActivity() {
 
         val companyType = intent.getStringExtra("companyType")
         if (companyType.equals("Edit")) {
+            editType = true
             val bundle = intent.extras!!
             if (bundle.getParcelable<Company>("company") !== null) {
                 data = bundle.getParcelable<Company>("company")!!
@@ -50,6 +73,8 @@ class InputCompany : AppCompatActivity() {
             (binding.etCompanyAddress as TextView).text = data!!.address
             (binding.etCompanyCity as TextView).text = data!!.city
             (binding.etCompanyZipCode as TextView).text = data!!.zipCode
+            latitude = data!!.latitude
+            longitude = data!!.longitude
             if (data!!.status == "Active") {
                 binding.rbActive.isChecked = true
             } else {
@@ -60,9 +85,21 @@ class InputCompany : AppCompatActivity() {
             binding.btnSave.text = "Save"
         }
 
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
+
+        val mapFragment = supportFragmentManager
+            .findFragmentById(R.id.map) as SupportMapFragment
+        mapFragment.getMapAsync(this)
+
 
         with(binding) {
+
             closeBtn.setOnClickListener { onBackPressed() }
+
+            btnChangeMaps.setOnClickListener {
+                pickLocation()
+            }
+
             btnCancel.setOnClickListener {
                 (binding.etCompanyName as TextView).text = ""
                 (binding.etCompanyAddress as TextView).text = ""
@@ -77,7 +114,7 @@ class InputCompany : AppCompatActivity() {
                     this@InputCompany
                 )
                 val intent = Intent()
-                setResult(1, intent)
+                setResult(2, intent)
                 finish()
             }
 
@@ -92,7 +129,9 @@ class InputCompany : AppCompatActivity() {
                         companyName,
                         companyAddress,
                         companyCity,
-                        companyZipcode,
+                        latitude,
+                        longitude,
+                        companyZipcode
                     )
 
                     if (companyType.equals("Edit")) {
@@ -161,12 +200,104 @@ class InputCompany : AppCompatActivity() {
         }
     }
 
-    companion object{
-        fun newInstance(listener: ((Boolean) -> Unit)): InputCompany {
-            val inputCompany = InputCompany()
-            inputCompany.listener = listener
-            return inputCompany
+    override fun onMapReady(googleMap: GoogleMap) {
+        mapView = googleMap
+        mapView.uiSettings.isZoomControlsEnabled = true
+        mapView.setOnMarkerClickListener(this)
+        setUpMap()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun setUpMap() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
+            PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                101
+            )
+            return
+        }
+        mapView.isMyLocationEnabled = true
+        fusedLocationProviderClient.lastLocation.addOnSuccessListener(this) { location ->
+            if (location != null) {
+                lastLocation = location
+                latitude =  if(editType) latitude else location.latitude
+                longitude = if(editType) longitude else location.longitude
+                val currentLatLong =
+                    com.google.android.gms.maps.model.LatLng(if(editType) latitude else location.latitude, if(editType) longitude else location.longitude)
+                placeMarkerOnMap(currentLatLong)
+                mapView.animateCamera(
+                    com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(
+                        currentLatLong,
+                        15f
+                    )
+                )
+            }
         }
     }
+
+    private fun placeMarkerOnMap(currentLatLong: com.google.android.gms.maps.model.LatLng) {
+        val markerOptions =
+            com.google.android.gms.maps.model.MarkerOptions().position(currentLatLong)
+        markerOptions.title("$currentLatLong")
+        mapView.addMarker(markerOptions)
+    }
+
+    override fun onMarkerClick(p0: Marker): Boolean = false
+
+    private fun pickLocation() {
+        val locationPickerIntent = LocationPickerActivity.Builder()
+            .withGooglePlacesApiKey(MAPS_API_KEY)
+            .withLocation(latitude, longitude)
+            .withGeolocApiKey(MAPS_API_KEY)
+            .withSearchZone("id_ID")
+            .shouldReturnOkOnBackPressed()
+            .withSatelliteViewHidden()
+            .withGoogleTimeZoneEnabled()
+            .withVoiceSearchHidden()
+            .withUnnamedRoadHidden()
+            .build(applicationContext)
+
+        startActivityForResult(locationPickerIntent, 1)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode == Activity.RESULT_OK && data != null) {
+            Log.e("MASUK", requestCode.toString())
+            if (requestCode == 1) {
+                val lat = data.getDoubleExtra(LATITUDE, 0.0)
+                val long = data.getDoubleExtra(LONGITUDE, 0.0)
+                val postalcode = data.getStringExtra(ZIPCODE)
+                val fullAddress = data.getParcelableExtra<Address>(ADDRESS)
+                latitude = lat
+                longitude = long
+                (binding.etCompanyAddress as TextView).text = fullAddress!!.getAddressLine(0)
+                (binding.etCompanyCity as TextView).text = fullAddress.subAdminArea
+                (binding.etCompanyZipCode as TextView).text = postalcode
+                val newLatLong =
+                    com.google.android.gms.maps.model.LatLng(latitude, longitude)
+                placeMarkerOnMap(newLatLong)
+                mapView.animateCamera(
+                    com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(
+                        newLatLong,
+                        15f
+                    )
+                )
+            }
+        }
+        if (resultCode == Activity.RESULT_CANCELED) {
+            Log.e("RESULT****", "CANCELLED")
+        }
+    }
+
+//    companion object {
+//        fun newInstance(listener: ((Boolean) -> Unit)): InputCompany {
+//            val inputCompany = InputCompany()
+//            inputCompany.listener = listener
+//            return inputCompany
+//        }
+//    }
 
 }

@@ -9,7 +9,10 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.adevinta.leku.LocationPickerActivity
+import com.adevinta.leku.locale.SearchZoneRect
 import com.example.olsera.databinding.ActivityMainBinding
+import com.google.android.gms.maps.model.LatLng
 
 class MainActivity : AppCompatActivity(), CompanyClickInterface {
 
@@ -126,15 +129,12 @@ class MainActivity : AppCompatActivity(), CompanyClickInterface {
         intent.putExtras(bundle)
         startActivityForResult(intent, 1)
 
-        /* Delete Company */
-//        viewModel.deleteCompany(company)
-
     }
 
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 1) {
+        if (resultCode == 2) {
             viewModel.deleteCompany(dataCompany)
         }
     }
