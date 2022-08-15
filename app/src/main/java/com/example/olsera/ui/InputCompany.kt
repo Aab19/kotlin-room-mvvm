@@ -1,4 +1,4 @@
-package com.example.olsera
+package com.example.olsera.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -18,15 +18,20 @@ import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModelProvider
 import com.adevinta.leku.*
+import com.example.olsera.R
 import com.example.olsera.databinding.ActivityInputCompanyBinding
+import com.example.olsera.db.Company
 import com.example.olsera.utils.showCustomToast
+import com.example.olsera.viewmodel.CompanyViewModel
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.Marker
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class InputCompany : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
 
     private lateinit var binding: ActivityInputCompanyBinding
@@ -53,10 +58,7 @@ class InputCompany : AppCompatActivity(), OnMapReadyCallback, GoogleMap.OnMarker
         super.onCreate(savedInstanceState)
         binding = ActivityInputCompanyBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        viewModel = ViewModelProvider(
-            this,
-            ViewModelProvider.AndroidViewModelFactory.getInstance(application)
-        )[CompanyViewModel::class.java]
+        viewModel = ViewModelProvider(this)[CompanyViewModel::class.java]
 
         val companyType = intent.getStringExtra("companyType")
         if (companyType.equals("Edit")) {

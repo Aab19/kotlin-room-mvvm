@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".InputCompany">
+    tools:context=".ui.InputCompany">
 
     <TextView
         android:id="@+id/tvHead"
@@ -174,7 +174,7 @@
                     android:layout_height="300dp"
                     android:layout_marginStart="16dp"
                     android:layout_marginEnd="16dp"
-                    tools:context=".InputCompany" />
+                    tools:context=".ui.InputCompany" />
 
                 <ImageView
                     android:id="@+id/btnChangeMaps"
